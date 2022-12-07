@@ -32,6 +32,7 @@ clean:	## Removes all dangling build cache
 init: export DOCKER_BUILDKIT=1
 init:	## Creates the buildx instance
 	$(info Initializing Builder...)
+	docker run --privileged --rm tonistiigi/binfmt --install all
 	docker buildx create --use --name=qemu
 	docker buildx inspect --bootstrap
 

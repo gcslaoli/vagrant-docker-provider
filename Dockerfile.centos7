@@ -1,23 +1,12 @@
-FROM ubuntu:jammy
-LABEL MAINTAINER="John Rofrano <rofrano@gmail.com>"
+# Modified by Matthew Warman <mcwarman@gmail.com> 
+# Based on project with in CenOs/CentOS-Dockerfiles
+# https://github.com/CentOS/CentOS-Dockerfiles/tree/master/systemd/centos7
 
-ENV DEBIAN_FRONTEND noninteractive
+FROM centos:centos7
 
-# Install packages needed for SSH and interactive OS
-RUN apt-get update && \
-    yes | unminimize && \
-    apt-get -y install \
-        openssh-server \
-        passwd \
-        sudo \
-        man-db \
-        curl \
-        wget \
-        vim-tiny && \
-    apt-get -qq clean && \
-    rm -rf /var/lib/apt/lists/* /tmp/* /var/tmp/*
+RUN yum -y update; yum clean all && \
+    yum -y install openssh-server openssh-clients passwd sudo; yum clean all
 
-# Enable systemd (from Matthew Warman's mcwarman/vagrant-provider)
 RUN (cd /lib/systemd/system/sysinit.target.wants/; for i in *; do [ $i == systemd-tmpfiles-setup.service ] || rm -f $i; done); \
     rm -f /lib/systemd/system/multi-user.target.wants/*; \
     rm -f /etc/systemd/system/*.wants/*; \
@@ -27,23 +16,24 @@ RUN (cd /lib/systemd/system/sysinit.target.wants/; for i in *; do [ $i == system
     rm -f /lib/systemd/system/basic.target.wants/*; \
     rm -f /lib/systemd/system/anaconda.target.wants/*;
 
-# Enable ssh for vagrant
-RUN systemctl enable ssh.service; 
-# EXPOSE 22
+RUN mkdir /var/run/sshd; \
+    ssh-keygen -t rsa -f /etc/ssh/ssh_host_rsa_key -N ''; \
+    systemctl enable sshd.service; \
+    sed -i '/^session.*pam_loginuid.so/s/^session/# session/' /etc/pam.d/sshd; \
+    sed -i 's/Defaults.*requiretty/#Defaults requiretty/g' /etc/sudoers; \
+    rm /usr/lib/tmpfiles.d/systemd-nologin.conf;
 
-# Create the vagrant user
-RUN useradd -m -G sudo -s /bin/bash vagrant && \
-    echo "vagrant:vagrant" | chpasswd && \
-    echo 'vagrant ALL=(ALL) NOPASSWD: ALL' > /etc/sudoers.d/vagrant && \
+RUN useradd --create-home -s /bin/bash vagrant; \
+    echo -e "vagrant\nvagrant" | (passwd --stdin vagrant); \
+    echo 'vagrant ALL=(ALL) NOPASSWD: ALL' > /etc/sudoers.d/vagrant; \
     chmod 440 /etc/sudoers.d/vagrant
 
-# Establish ssh keys for vagrant
 RUN mkdir -p /home/vagrant/.ssh; \
     chmod 700 /home/vagrant/.ssh
 COPY vagrant.pub /home/vagrant/.ssh/authorized_keys
 RUN chmod 600 /home/vagrant/.ssh/authorized_keys; \
     chown -R vagrant:vagrant /home/vagrant/.ssh
 
-# Run the init daemon
 VOLUME [ "/sys/fs/cgroup" ]
+
 CMD ["/usr/sbin/init"]

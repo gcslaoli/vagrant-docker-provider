@@ -5,7 +5,7 @@
 ## ----------------------------------------------------------------------
 
 # These can be overidden with env vars.
-REGISTRY ?= rofrano
+REGISTRY ?= gcslaoli
 IMAGE_NAME ?= vagrant-provider
 IMAGE_TAG ?= ubuntu
 IMAGE ?= $(REGISTRY)/$(IMAGE_NAME):$(IMAGE_TAG)
